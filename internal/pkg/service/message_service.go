@@ -34,7 +34,6 @@ type Message_Service struct {
 	kafkaConsumer   *kafka.Consumer
 	redisRepo       *repository.RedisRepo
 	esRepo          *repository.ElasticsearchRepo
-	//queueMu         sync.Mutex
 	processingQueue []string
 	incomingQueue   []string
 	queueSwitch     bool
