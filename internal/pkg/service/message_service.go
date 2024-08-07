@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	config "notifications/configurations"
@@ -36,10 +34,10 @@ type Message_Service struct {
 	kafkaConsumer   *kafka.Consumer
 	redisRepo       *repository.RedisRepo
 	esRepo          *repository.ElasticsearchRepo
-	queueMu         sync.Mutex
+	//queueMu         sync.Mutex
 	processingQueue []string
 	incomingQueue   []string
-	queueSwitch     int32
+	queueSwitch     bool
 }
 
 var MSGS []models.SMS
@@ -82,22 +80,6 @@ func (s *Message_Service) Create_SMS(sms *models.SMS) error {
 	return nil
 }
 
-func (s *Message_Service) ToggleQueueSwitch() {
-	for {
-		oldValue := atomic.LoadInt32(&s.queueSwitch)
-		var newValue int32
-		if oldValue == 0 {
-			newValue = 1 // True
-		} else {
-			newValue = 0 // False
-		}
-
-		if atomic.CompareAndSwapInt32(&s.queueSwitch, oldValue, newValue) {
-			break
-		}
-	}
-}
-
 func (s *Message_Service) StartConsumingMessages() {
 	topic := config.KafkaTopic
 	err := s.kafkaConsumer.SubscribeTopics([]string{topic}, nil)
@@ -111,35 +93,26 @@ func (s *Message_Service) StartConsumingMessages() {
 			continue
 		}
 
-		// Lock the mutex before modifying the queues
-		s.queueMu.Lock()
-		if atomic.LoadInt32(&s.queueSwitch) == 1 {
+		if s.queueSwitch  {
 			s.incomingQueue = append(s.incomingQueue, string(msg.Value))
 		} else {
 			s.processingQueue = append(s.processingQueue, string(msg.Value))
 		}
-		s.queueMu.Unlock()
-
 		log.Printf("StartConsumingMessages: Message received from Kafka and added to queue: %s", msg.Value)
 	}
 }
 func (s *Message_Service) Process_Messages() ([]map[string]interface{}, error) {
-	s.ToggleQueueSwitch()
-	s.queueMu.Lock()
+	s.queueSwitch =!s.queueSwitch
 	var messages []string
 
 	// Check the current queueSwitch value atomically
-	if atomic.LoadInt32(&s.queueSwitch) == 1 {
+	if s.queueSwitch {
 		messages = s.processingQueue
 		s.processingQueue = nil
 	} else {
 		messages = s.incomingQueue
 		s.incomingQueue = nil
 	}
-
-	// Toggle the queueSwitch value atomically
-
-	s.queueMu.Unlock()
 
 	if len(messages) == 0 {
 		log.Println(ErrNoMessages)
