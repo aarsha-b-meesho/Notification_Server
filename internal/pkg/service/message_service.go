@@ -40,6 +40,7 @@ type Message_Service struct {
 }
 
 var MSGS []models.SMS
+var now time.Time
 
 func New_Message_Service(db *repository.MySQLRepo, producer *kafka.Producer, kafkaConsumer *kafka.Consumer, redisRepo *repository.RedisRepo, esRepo *repository.ElasticsearchRepo) *Message_Service {
 	service := &Message_Service{
@@ -53,7 +54,7 @@ func New_Message_Service(db *repository.MySQLRepo, producer *kafka.Producer, kaf
 	return service
 }
 
-var now time.Time
+
 
 func (s *Message_Service) Create_SMS(sms *models.SMS) error {
 	now = time.Now().UTC().Add(5*time.Hour + 30*time.Minute)
