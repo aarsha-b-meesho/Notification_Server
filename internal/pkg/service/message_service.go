@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	config "notifications/configurations"
@@ -38,7 +39,7 @@ type Message_Service struct {
 	queueMu         sync.Mutex
 	processingQueue []string
 	incomingQueue   []string
-	queueSwitch     bool
+	queueSwitch     int32
 }
 
 var MSGS []models.SMS
@@ -81,6 +82,22 @@ func (s *Message_Service) Create_SMS(sms *models.SMS) error {
 	return nil
 }
 
+func (s *Message_Service) ToggleQueueSwitch() {
+	for {
+		oldValue := atomic.LoadInt32(&s.queueSwitch)
+		var newValue int32
+		if oldValue == 0 {
+			newValue = 1 // True
+		} else {
+			newValue = 0 // False
+		}
+
+		if atomic.CompareAndSwapInt32(&s.queueSwitch, oldValue, newValue) {
+			break
+		}
+	}
+}
+
 func (s *Message_Service) StartConsumingMessages() {
 	topic := config.KafkaTopic
 	err := s.kafkaConsumer.SubscribeTopics([]string{topic}, nil)
@@ -93,28 +110,35 @@ func (s *Message_Service) StartConsumingMessages() {
 			log.Printf("StartConsumingMessages: %s: %v", ErrReadMessageKafka, err)
 			continue
 		}
+
+		// Lock the mutex before modifying the queues
 		s.queueMu.Lock()
-		if s.queueSwitch {
+		if atomic.LoadInt32(&s.queueSwitch) == 1 {
 			s.incomingQueue = append(s.incomingQueue, string(msg.Value))
 		} else {
 			s.processingQueue = append(s.processingQueue, string(msg.Value))
 		}
 		s.queueMu.Unlock()
+
 		log.Printf("StartConsumingMessages: Message received from Kafka and added to queue: %s", msg.Value)
 	}
 }
-
 func (s *Message_Service) Process_Messages() ([]map[string]interface{}, error) {
+	s.ToggleQueueSwitch()
 	s.queueMu.Lock()
 	var messages []string
-	if s.queueSwitch {
-		messages = s.incomingQueue
-		s.incomingQueue = nil
-	} else {
+
+	// Check the current queueSwitch value atomically
+	if atomic.LoadInt32(&s.queueSwitch) == 1 {
 		messages = s.processingQueue
 		s.processingQueue = nil
+	} else {
+		messages = s.incomingQueue
+		s.incomingQueue = nil
 	}
-	s.queueSwitch = !s.queueSwitch
+
+	// Toggle the queueSwitch value atomically
+
 	s.queueMu.Unlock()
 
 	if len(messages) == 0 {
@@ -257,7 +281,6 @@ func (s *Message_Service) index_sms_in_elasticsearch(sms models.SMS) error {
 	}
 	return nil
 }
-
 
 func (s *Message_Service) Check_ID_Exists(msgID string) (bool, error) {
 	var exists bool
