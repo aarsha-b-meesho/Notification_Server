@@ -41,16 +41,20 @@ type searchByTimeRangeResponse struct {
 }
 
 // Controller
-type Elastic_search_Controller struct {
-	elasticsearchService *service.Elasticsearch_Service
+type ElasticSearchController struct {
+	elasticsearchService *service.ElasticsearchService
 }
 
-func New_ElasticSearch_Controller(esService *service.Elasticsearch_Service) *Elastic_search_Controller {
-	return &Elastic_search_Controller{elasticsearchService: esService}
+func NewElasticSearchController() *ElasticSearchController {
+	elastic := service.GetElasticService()
+	return &ElasticSearchController{elasticsearchService: elastic}
+}
+func GetElasticController() *ElasticSearchController{
+	return NewElasticSearchController()
 }
    
 // Handler functions
-func (h *Elastic_search_Controller) Get_Doc_By_ID(w http.ResponseWriter, r *http.Request) {
+func (h *ElasticSearchController) GetDocByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentTypeHeader)
 
 	vars := mux.Vars(r)
@@ -58,7 +62,7 @@ func (h *Elastic_search_Controller) Get_Doc_By_ID(w http.ResponseWriter, r *http
 	id := vars["id"]
 	log.Printf("getDocByID: Received request for document with ID %s from index %s", id, index)
 
-	doc, err := h.elasticsearchService.Get_Document_By_ID(index, id)
+	doc, err := h.elasticsearchService.GetDocumentByID(index, id)
 	if err != nil {
 		handleInternalError(w, err, "getDocByID")
 		return
@@ -75,7 +79,7 @@ func (h *Elastic_search_Controller) Get_Doc_By_ID(w http.ResponseWriter, r *http
 	}
 }
 
-func (h *Elastic_search_Controller) Get_Doc_By_Text(w http.ResponseWriter, r *http.Request) {
+func (h *ElasticSearchController) GetDocByText(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentTypeHeader)
     
 	vars := mux.Vars(r)
@@ -83,7 +87,7 @@ func (h *Elastic_search_Controller) Get_Doc_By_Text(w http.ResponseWriter, r *ht
 	text := vars["text"]
 	log.Printf("getDocByText: Received request for text '%s' from index %s", text, index)
 
-	docs, err := h.elasticsearchService.Search_By_Text(index, text)
+	docs, err := h.elasticsearchService.SearchByText(index, text)
 	if err != nil {
 		handleInternalError(w, err, "getDocByText")
 		return
@@ -100,7 +104,7 @@ func (h *Elastic_search_Controller) Get_Doc_By_Text(w http.ResponseWriter, r *ht
 	}
 }
 
-func (h *Elastic_search_Controller) Get_All_Docs(w http.ResponseWriter, r *http.Request) {
+func (h *ElasticSearchController) GetAllDocs(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentTypeHeader)
  
 	var requestBody struct {
@@ -120,7 +124,7 @@ func (h *Elastic_search_Controller) Get_All_Docs(w http.ResponseWriter, r *http.
 		return
 	}
 
-	docs, err := h.elasticsearchService.Get_All_Documents(index)
+	docs, err := h.elasticsearchService.GetAllDocuments(index)
 	if err != nil {
 		log.Printf("getAllDocs: Error retrieving documents from index %s: %v", index, err)
 		http.Error(w, `{"error":{"code":"INTERNAL_ERROR","message":"Failed to retrieve documents"}}`, http.StatusInternalServerError)
@@ -133,7 +137,7 @@ func (h *Elastic_search_Controller) Get_All_Docs(w http.ResponseWriter, r *http.
 	}
 }
    
-func (h *Elastic_search_Controller) Get_Doc_By_TimeRange(w http.ResponseWriter, r *http.Request) {
+func (h *ElasticSearchController) GetDocsByTimeRange(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", contentTypeHeader)
 
 	var request struct {
@@ -148,7 +152,7 @@ func (h *Elastic_search_Controller) Get_Doc_By_TimeRange(w http.ResponseWriter, 
 		return
 	}
 
-	docs, err := h.elasticsearchService.Search_By_TimeRange(request.Index, request.StartTime, request.EndTime)
+	docs, err := h.elasticsearchService.SearchByTimeRange(request.Index, request.StartTime, request.EndTime)
 	if err != nil {
 		log.Printf("getDocByTimeRange: Error retrieving documents from index %s between %s and %s: %v", request.Index, request.StartTime, request.EndTime, err)
 		http.Error(w, `{"error":{"code":"INTERNAL_ERROR","message":"Failed to retrieve documents"}}`, http.StatusInternalServerError)
