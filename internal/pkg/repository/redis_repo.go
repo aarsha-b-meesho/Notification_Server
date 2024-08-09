@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"log"
-
+	"notifications/configurations"
 	"github.com/go-redis/redis/v8"
 )
 
@@ -11,7 +11,7 @@ type RedisRepo struct {
 	client *redis.Client
 }
 
-func New_Redis_Repo(addr string) *RedisRepo {
+func NewRedisRepo(addr string) *RedisRepo {
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
 	})
@@ -56,4 +56,19 @@ func (r *RedisRepo) SRem(ctx context.Context, key, member string) *redis.IntCmd 
 func (r *RedisRepo) SMembers(ctx context.Context, key string) *redis.StringSliceCmd {
 	log.Printf("SMembers: Retrieving all members from set '%s'", key)
 	return r.client.SMembers(ctx, key)
+}
+func GetRedisRepository() (*RedisRepo,error) {
+	// Initialize MySQL repository
+	redisRepo:= NewRedisRepo(config.RedisAddr)
+	ctx := context.Background()
+		// Ping Redis to check connection
+		if err := redisRepo.Ping(ctx); err != nil {
+			return nil, err
+		}
+	
+		// Flush Redis database (optional, based on use case)
+		if err := redisRepo.FlushDB(ctx); err != nil {
+			return nil,err
+		}
+	return redisRepo ,nil
 }
