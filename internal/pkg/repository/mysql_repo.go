@@ -5,7 +5,7 @@ import (
 	"log"
 	"notifications/internal/models"
 	"time"
-
+	"notifications/configurations"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -14,7 +14,7 @@ type MySQLRepo struct {
 	db *gorm.DB
 }
 
-func New_MySQL_Repo(dsn string) (*MySQLRepo, error) {
+func NewMySQL(dsn string) (*MySQLRepo, error) {
 	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("NewMySQLRepo: Failed to open database: %v", err)
@@ -65,4 +65,17 @@ func (r *MySQLRepo) UpdateSMSStatus(id, status, failureComments string) error {
 	}
 	log.Printf("UpdateSMSStatus: Updated SMS status for ID %s successfully", id)
 	return nil
+}
+func GetMySqlRepository() (*MySQLRepo, error) {
+	// Initialize MySQL repository
+	mySQLRepo, err := NewMySQL(config.MySQLDSN)
+	if err != nil {
+		return nil, err
+	}
+
+	// Migrate DB
+	if err := mySQLRepo.Migrate(); err != nil {
+		return nil, err
+	}
+	return mySQLRepo, nil
 }
