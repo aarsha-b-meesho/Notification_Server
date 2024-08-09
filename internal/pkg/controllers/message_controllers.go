@@ -62,12 +62,9 @@ type MessageController struct {
 }
 
 // NewMessageController creates a new MessageController
-func NewMessageController() *MessageController {
+func GetMessageController() *MessageController {
 	message:= service.GetMessageService()
 	return &MessageController{MessageService: message}
-}
-func GetMessageController() *MessageController{
-	return NewMessageController()
 }
 // NotifyServer handles requests to notify the server
 func (h *MessageController) NotifyServer(w http.ResponseWriter, r *http.Request) {
