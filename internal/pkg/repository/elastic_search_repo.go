@@ -9,7 +9,7 @@ import (
 	"notifications/internal/models"
 	"strings"
 	"time"
-
+	"notifications/configurations"
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 )
@@ -18,7 +18,7 @@ type ElasticsearchRepo struct {
 	client *elasticsearch.Client
 }
 
-func New_Elastic_Search_Repo(addr string) (*ElasticsearchRepo, error) {
+func NewElasticSearch(addr string) (*ElasticsearchRepo, error) {
 	cfg := elasticsearch.Config{
 		Addresses: []string{addr},
 	}
@@ -244,4 +244,14 @@ func (r *ElasticsearchRepo) Search(index string, query string) (*esapi.Response,
 		return nil, fmt.Errorf("failed to search documents in index %s: %w", index, err)
 	}
 	return res, nil
+}
+func GetElasticRepo()(*ElasticsearchRepo,error){
+	elasticRepo, err := NewElasticSearch(config.ElasticsearchAddr)
+	if err != nil {
+		return nil, err
+	}
+	if err := elasticRepo.CreateIndex("sms_index"); err != nil {
+		return nil, err
+	}
+	return elasticRepo,nil
 }
