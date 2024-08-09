@@ -47,14 +47,11 @@ type BlackListController struct {
 	blacklistService *service.BlacklistService
 }
 
-// NewBlackListController creates and returns a new instance of BlackListController.
-func NewBlackListController() *BlackListController {
-	blacklistService := service.GetNewBlackListSerevice()
-	return &BlackListController{blacklistService: blacklistService}
-}
+
 // Handler functions
 func GetBlackListController()*BlackListController{
-	return NewBlackListController()
+	blacklistService := service.GetNewBlackListSerevice()
+	return &BlackListController{blacklistService: blacklistService}
 }
 func (h *BlackListController) GetAllFromBlackList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
