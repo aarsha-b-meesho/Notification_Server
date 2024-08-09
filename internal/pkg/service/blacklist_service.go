@@ -4,8 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-
-	"notifications/internal/pkg/repository"
+	repository "notifications/internal/pkg/repository"
 )
 
 // Constants for Redis keys
@@ -13,22 +12,35 @@ const (
 	BlacklistKey = "Black"
 )
 
-// Blacklist_Service provides methods to manage blacklisted phone numbers
-type Blacklist_Service struct {
+// BlacklistService provides methods to manage blacklisted phone numbers
+type BlacklistService struct {
 	db        *repository.MySQLRepo
 	redisRepo *repository.RedisRepo
 }
 
-// New_Blacklist_Service creates a new instance of Blacklist_Service
-func New_Blacklist_Service(db *repository.MySQLRepo, redisRepo *repository.RedisRepo) *Blacklist_Service {
-	return &Blacklist_Service{
-		db:        db,
-		redisRepo: redisRepo,
+// NewBlacklistService creates a new instance of BlacklistService
+func NewBlacklistService() *BlacklistService {
+	sqlDb, err := repository.GetMySqlRepository()
+	if err != nil {
+		log.Panic("Error in getting sql db connection")
+
+	}
+	redisrepo, err := repository.GetRedisRepository()
+	if err != nil {
+		log.Panic("Error in getting sql db connection")
+
+	}
+	return &BlacklistService{
+		db:        sqlDb,
+		redisRepo: redisrepo,
 	}
 }
+func GetNewBlackListSerevice() *BlacklistService {
+	return NewBlacklistService()
+}
 
-// Add_To_Blacklist adds phone numbers to the blacklist and returns the results
-func (b *Blacklist_Service) Add_To_Blacklist(numbers []string) ([]string, []string, error) {
+// AddToBlacklist adds phone numbers to the blacklist and returns the results
+func (b *BlacklistService) AddToBlacklist(numbers []string) ([]string, []string, error) {
 	var successfullyBlacklisted []string
 	var alreadyBlacklisted []string
 	ctx := context.Background()
@@ -39,7 +51,7 @@ func (b *Blacklist_Service) Add_To_Blacklist(numbers []string) ([]string, []stri
 		} else if isBlacklisted {
 			alreadyBlacklisted = append(alreadyBlacklisted, number)
 		} else {
-			if err := b.addNumberToBlacklist(ctx, number); err != nil {
+			if err := b.AddNumberToBlacklist(ctx, number); err != nil {
 				return nil, nil, err
 			}
 			successfullyBlacklisted = append(successfullyBlacklisted, number)
@@ -49,8 +61,8 @@ func (b *Blacklist_Service) Add_To_Blacklist(numbers []string) ([]string, []stri
 	return successfullyBlacklisted, alreadyBlacklisted, nil
 }
 
-// Remove_From_Blacklist removes a phone number from the blacklist
-func (b *Blacklist_Service) Remove_From_Blacklist(number string) error {
+// RemoveFromBlacklist removes a phone number from the blacklist
+func (b *BlacklistService) RemoveFromBlacklist(number string) error {
 	ctx := context.Background()
 
 	if isBlacklisted, err := b.isNumberBlacklisted(ctx, number); err != nil {
@@ -62,8 +74,8 @@ func (b *Blacklist_Service) Remove_From_Blacklist(number string) error {
 	return b.removeNumberFromBlacklist(ctx, number)
 }
 
-// Get_All_Blacklisted_Numbers retrieves all blacklisted phone numbers
-func (b *Blacklist_Service) Get_All_Blacklisted_Numbers(ctx context.Context) ([]string, error) {
+// GetAllFromBlacklist retrieves all blacklisted phone numbers
+func (b *BlacklistService) GetAllFromBlacklist(ctx context.Context) ([]string, error) {
 	blacklist, err := b.redisRepo.SMembers(ctx, BlacklistKey).Result()
 	if err != nil {
 		log.Printf("Error retrieving blacklisted numbers: %v", err)
@@ -72,13 +84,13 @@ func (b *Blacklist_Service) Get_All_Blacklisted_Numbers(ctx context.Context) ([]
 	return blacklist, nil
 }
 
-// Is_Number_Blacklisted checks if a phone number is blacklisted
-func (b *Blacklist_Service) Is_Number_Blacklisted(ctx context.Context, number string) (bool, error) {
+// IsNumberBlacklisted checks if a phone number is blacklisted
+func (b *BlacklistService) IsNumberBlacklisted(ctx context.Context, number string) (bool, error) {
 	return b.isNumberBlacklisted(ctx, number)
 }
 
 // Helper method to check if a number is blacklisted
-func (b *Blacklist_Service) isNumberBlacklisted(ctx context.Context, number string) (bool, error) {
+func (b *BlacklistService) isNumberBlacklisted(ctx context.Context, number string) (bool, error) {
 	isBlacklisted, err := b.redisRepo.SIsMember(ctx, BlacklistKey, number).Result()
 	if err != nil {
 		log.Printf("Error checking blacklist status for number %s: %v", number, err)
@@ -88,7 +100,7 @@ func (b *Blacklist_Service) isNumberBlacklisted(ctx context.Context, number stri
 }
 
 // Helper method to add a number to the blacklist
-func (b *Blacklist_Service) addNumberToBlacklist(ctx context.Context, number string) error {
+func (b *BlacklistService) AddNumberToBlacklist(ctx context.Context, number string) error {
 	err := b.redisRepo.SAdd(ctx, BlacklistKey, number).Err()
 	if err != nil {
 		log.Printf("Error adding number %s to blacklist: %v", number, err)
@@ -98,7 +110,7 @@ func (b *Blacklist_Service) addNumberToBlacklist(ctx context.Context, number str
 }
 
 // Helper method to remove a number from the blacklist
-func (b *Blacklist_Service) removeNumberFromBlacklist(ctx context.Context, number string) error {
+func (b *BlacklistService) removeNumberFromBlacklist(ctx context.Context, number string) error {
 	err := b.redisRepo.SRem(ctx, BlacklistKey, number).Err()
 	if err != nil {
 		log.Printf("Error removing number %s from blacklist: %v", number, err)
