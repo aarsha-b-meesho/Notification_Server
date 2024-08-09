@@ -45,12 +45,10 @@ type ElasticSearchController struct {
 	elasticsearchService *service.ElasticsearchService
 }
 
-func NewElasticSearchController() *ElasticSearchController {
-	elastic := service.GetElasticService()
-	return &ElasticSearchController{elasticsearchService: elastic}
-}
+
 func GetElasticController() *ElasticSearchController{
-	return NewElasticSearchController()
+		elastic := service.GetElasticService()
+	return &ElasticSearchController{elasticsearchService: elastic}
 }
    
 // Handler functions
