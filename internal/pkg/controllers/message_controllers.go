@@ -56,31 +56,34 @@ type ErrorDetail struct {
 	Message string `json:"message"`
 }
 
-// Message_Controller handles requests related to messages
-type Message_Controller struct {
-	Message_Service *service.Message_Service
+// MessageController handles requests related to messages
+type MessageController struct {
+	MessageService *service.MessageService
 }
 
-// New_Message_Controller creates a new Message_Controller
-func New_Message_Controller(messageService *service.Message_Service) *Message_Controller {
-	return &Message_Controller{Message_Service: messageService}
+// NewMessageController creates a new MessageController
+func NewMessageController() *MessageController {
+	message:= service.GetMessageService()
+	return &MessageController{MessageService: message}
 }
-
-// Notify_Server handles requests to notify the server
-func (h *Message_Controller) Notify_Server(w http.ResponseWriter, r *http.Request) {
+func GetMessageController() *MessageController{
+	return NewMessageController()
+}
+// NotifyServer handles requests to notify the server
+func (h *MessageController) NotifyServer(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", ContentTypeJSON)
     
 	var sms models.SMS
 	if err := json.NewDecoder(r.Body).Decode(&sms); err != nil {
-		h.sendErrorResponse_Message(w, ErrorInvalidInput, http.StatusBadRequest)
+		h.sendErrorResponseMessage(w, ErrorInvalidInput, http.StatusBadRequest)
 		return
 	}
     
 	h.setSMSFields(&sms)
     
-	if err := h.Message_Service.Create_SMS(&sms); err != nil {
-		log.Printf("Notify_Server: %v", err)
-		h.sendErrorResponse_Message(w, ErrorFailedToInsertIntoDB, http.StatusInternalServerError)
+	if err := h.MessageService.CreateMessage(&sms); err != nil {
+		log.Printf("NotifyServer: %v", err)
+		h.sendErrorResponseMessage(w, ErrorFailedToInsertIntoDB, http.StatusInternalServerError)
 		return
 	}
     
@@ -93,14 +96,14 @@ func (h *Message_Controller) Notify_Server(w http.ResponseWriter, r *http.Reques
 	h.sendSuccessResponse(w, response)
 }
 
-// Send_Message handles requests to send messages
-func (h *Message_Controller) Send_Message(w http.ResponseWriter, r *http.Request) {
+// SendMessageToUsers handles requests to send messages
+func (h *MessageController) SendMessageToUsers(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", ContentTypeJSON)
     
-	results, err := h.Message_Service.Process_Messages()
+	results, err := h.MessageService.ProcessMessages()
 	if err != nil {
-		log.Printf("Send_Message: %v", err)
-		h.sendErrorResponse_Message(w, ErrorFailedToProcessMessages, http.StatusInternalServerError)
+		log.Printf("SendMessageToUsers: %v", err)
+		h.sendErrorResponseMessage(w, ErrorFailedToProcessMessages, http.StatusInternalServerError)
 		return
 	}
     
@@ -110,14 +113,14 @@ func (h *Message_Controller) Send_Message(w http.ResponseWriter, r *http.Request
 	h.sendSuccessResponse(w, response)
 }
 
-// Get_All_Messages handles requests to get all messages
-func (h *Message_Controller) Get_All_Messages(w http.ResponseWriter, r *http.Request) {
+// GetAllMessages handles requests to get all messages
+func (h *MessageController) GetAllMessages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", ContentTypeJSON)
     
-	smsList, err := h.Message_Service.Get_All_Messages()
+	smsList, err := h.MessageService.GetAllMessages()
 	if err != nil {
-		log.Printf("Get_All_Messages: %v", err)
-		h.sendErrorResponse_Message(w, ErrorFailedToRetrieveSMSList, http.StatusInternalServerError)
+		log.Printf("GetAllMessages: %v", err)
+		h.sendErrorResponseMessage(w, ErrorFailedToRetrieveSMSList, http.StatusInternalServerError)
 		return
 	}
     
@@ -127,46 +130,47 @@ func (h *Message_Controller) Get_All_Messages(w http.ResponseWriter, r *http.Req
 	h.sendSuccessResponse(w, response)
 }
 
-// Get_Message_By_Id handles requests to get a message by ID
-func (h *Message_Controller) Get_Message_By_Id(w http.ResponseWriter, r *http.Request) {
+// GetMessageByID handles requests to get a message by ID
+func (h *MessageController) GetMessageByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", ContentTypeJSON)
 
 	vars := mux.Vars(r)
 	msgID := vars["ID"]
 
 	// Check if the ID exists
-	exists, err := h.Message_Service.Check_ID_Exists(msgID)
+	exists, err := h.MessageService.CheckIDExists(msgID)
 	if err != nil {
-		log.Printf("Get_Message_By_Id: %v", err)
-		h.sendErrorResponse_Message(w, ErrorFailedToCheckIDExists, http.StatusInternalServerError)
+		log.Printf("GetMessageByID: %v", err)
+		h.sendErrorResponseMessage(w, ErrorFailedToCheckIDExists, http.StatusInternalServerError)
 		return
 	}
 
 	if !exists {
-		h.sendErrorResponse_Message(w, ErrorIDNotFound, http.StatusNotFound)
+		h.sendErrorResponseMessage(w, ErrorIDNotFound, http.StatusNotFound)
 		return
 	}
 
 	// Retrieve the SMS message by ID
-	sms, err := h.Message_Service.Get_Message_By_ID(msgID)
+	sms, err := h.MessageService.GetMessageByID(msgID)
 	if err != nil {
-		log.Printf("Get_Message_By_Id: %v", err)
-		h.sendErrorResponse_Message(w, ErrorFailedToRetrieveSMS, http.StatusInternalServerError)
+		log.Printf("GetMessageByID: %v", err)
+		h.sendErrorResponseMessage(w, ErrorFailedToRetrieveSMS, http.StatusInternalServerError)
 		return
 	}
 
 	// Create response data
 	response := GetMessageByIDResponse{
-		Data: sms, // Use sms directly, assuming sms is of type models.SMS
+		Data: sms, 
 	}
 
 	// Send success response
+	sms.FailureCode = "200"
 	h.sendSuccessResponse(w, response)
 }
 
 
 // Helper function to set SMS fields
-func (h *Message_Controller) setSMSFields(sms *models.SMS) {
+func (h *MessageController) setSMSFields(sms *models.SMS) {
 	rand.Seed(uint64(time.Now().UnixNano()))
 	sms.ID = fmt.Sprintf("%v", rand.Intn(9999999)+1)
 	sms.CreatedAt = time.Now().UTC().Add(5*time.Hour + 30*time.Minute)
@@ -174,14 +178,14 @@ func (h *Message_Controller) setSMSFields(sms *models.SMS) {
 }
 
 // Helper function to send success responses
-func (h *Message_Controller) sendSuccessResponse(w http.ResponseWriter, data interface{}) {
+func (h *MessageController) sendSuccessResponse(w http.ResponseWriter, data interface{}) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		log.Printf("sendSuccessResponse: %v", err)
-		h.sendErrorResponse_Message(w, ErrorFailedToEncodeResponse, http.StatusInternalServerError)
+		h.sendErrorResponseMessage(w, ErrorFailedToEncodeResponse, http.StatusInternalServerError)
 	}
 }
 
 // Helper function to send error responses
-func (h *Message_Controller) sendErrorResponse_Message(w http.ResponseWriter, errorMessage string, statusCode int) {
+func (h *MessageController) sendErrorResponseMessage(w http.ResponseWriter, errorMessage string, statusCode int) {
 	http.Error(w, errorMessage, statusCode)
 }
