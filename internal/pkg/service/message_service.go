@@ -41,7 +41,7 @@ type MessageService struct {
 
 var MSGS []models.SMS
 
-func NewMessageService() *MessageService {
+func GetMessageService() *MessageService {
 	sqlrepo,err:= repository.GetMySqlRepository()
 	if err!=nil{
 		log.Panic(err)
@@ -72,9 +72,7 @@ func NewMessageService() *MessageService {
 	go service.StartConsumingMessages()
 	return service
 }
-func GetMessageService()*MessageService{
-return NewMessageService()
-}
+
 var now time.Time
 
 func (s *MessageService) CreateMessage(sms *models.SMS) error {
