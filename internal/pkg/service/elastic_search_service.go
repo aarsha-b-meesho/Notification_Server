@@ -25,16 +25,14 @@ type ElasticsearchService struct {
 	repo *repository.ElasticsearchRepo
 }
 
-func NewElasticSearchService() *ElasticsearchService {
+func GetElasticService() *ElasticsearchService {
 	elasticrepo ,err:= repository.GetElasticRepo()
 	if err!=nil{
 		log.Panic(err)
 	}
 	return &ElasticsearchService{repo: elasticrepo}
 }
-func GetElasticService() *ElasticsearchService{
-return NewElasticSearchService()
-}
+
 func (e *ElasticsearchService) GetAllDocuments(index string) ([]map[string]interface{}, error) {
 	query := `{
 		"query": {
