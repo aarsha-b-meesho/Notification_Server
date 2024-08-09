@@ -19,7 +19,7 @@ type BlacklistService struct {
 }
 
 // NewBlacklistService creates a new instance of BlacklistService
-func NewBlacklistService() *BlacklistService {
+func GetNewBlackListSerevice() *BlacklistService {
 	sqlDb, err := repository.GetMySqlRepository()
 	if err != nil {
 		log.Panic("Error in getting sql db connection")
@@ -34,9 +34,6 @@ func NewBlacklistService() *BlacklistService {
 		db:        sqlDb,
 		redisRepo: redisrepo,
 	}
-}
-func GetNewBlackListSerevice() *BlacklistService {
-	return NewBlacklistService()
 }
 
 // AddToBlacklist adds phone numbers to the blacklist and returns the results
