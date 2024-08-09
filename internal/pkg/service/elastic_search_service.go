@@ -21,15 +21,21 @@ const (
 	ErrEmptyDocumentID       = "document ID cannot be empty"
 )
 
-type Elasticsearch_Service struct {
+type ElasticsearchService struct {
 	repo *repository.ElasticsearchRepo
 }
 
-func New_ElasticSearch_Service(repo *repository.ElasticsearchRepo) *Elasticsearch_Service {
-	return &Elasticsearch_Service{repo: repo}
+func NewElasticSearchService() *ElasticsearchService {
+	elasticrepo ,err:= repository.GetElasticRepo()
+	if err!=nil{
+		log.Panic(err)
+	}
+	return &ElasticsearchService{repo: elasticrepo}
 }
-
-func (e *Elasticsearch_Service) Get_All_Documents(index string) ([]map[string]interface{}, error) {
+func GetElasticService() *ElasticsearchService{
+return NewElasticSearchService()
+}
+func (e *ElasticsearchService) GetAllDocuments(index string) ([]map[string]interface{}, error) {
 	query := `{
 		"query": {
 			"match_all": {}
@@ -38,11 +44,11 @@ func (e *Elasticsearch_Service) Get_All_Documents(index string) ([]map[string]in
 
 	res, err := e.repo.Search(index, query)
 	if err != nil {
-		return nil, e.Handle_Error("GetAllDocuments", err, index)
+		return nil, e.HandleError("GetAllDocuments", err, index)
 	}
 	defer res.Body.Close()
 
-	searchResults, err := e.Decode_Search_Results(res.Body)
+	searchResults, err := e.DecodeSearchResults(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +62,7 @@ func (e *Elasticsearch_Service) Get_All_Documents(index string) ([]map[string]in
 	return allDocs, nil
 }
 
-func (e *Elasticsearch_Service) Get_Document_By_ID(index string, id string) (map[string]interface{}, error) {
+func (e *ElasticsearchService) GetDocumentByID(index string, id string) (map[string]interface{}, error) {
 	if id == "" {
 		return nil, fmt.Errorf(ErrEmptyDocumentID)
 	}
@@ -71,11 +77,11 @@ func (e *Elasticsearch_Service) Get_Document_By_ID(index string, id string) (map
 
 	res, err := e.repo.Search(index, query)
 	if err != nil {
-		return nil, e.Handle_Error("GetDocumentByID", err, index)
+		return nil, e.HandleError("GetDocumentByID", err, index)
 	}
 	defer res.Body.Close()
 
-	searchResults, err := e.Decode_Search_Results(res.Body)
+	searchResults, err := e.DecodeSearchResults(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +96,7 @@ func (e *Elasticsearch_Service) Get_Document_By_ID(index string, id string) (map
 	return doc, nil
 }
 
-func (e *Elasticsearch_Service) Search_By_Text(index string, text string) ([]map[string]interface{}, error) {
+func (e *ElasticsearchService) SearchByText(index string, text string) ([]map[string]interface{}, error) {
 	query := fmt.Sprintf(`{
 		"query": {
 			"match": {
@@ -104,11 +110,11 @@ func (e *Elasticsearch_Service) Search_By_Text(index string, text string) ([]map
 
 	res, err := e.repo.Search(index, query)
 	if err != nil {
-		return nil, e.Handle_Error("SearchByText", err, index)
+		return nil, e.HandleError("SearchByText", err, index)
 	}
 	defer res.Body.Close()
 
-	searchResults, err := e.Decode_Search_Results(res.Body)
+	searchResults, err := e.DecodeSearchResults(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +128,7 @@ func (e *Elasticsearch_Service) Search_By_Text(index string, text string) ([]map
 	return matchingDocs, nil
 }
 
-func (e *Elasticsearch_Service) Search_By_TimeRange(index string, startTime time.Time, endTime time.Time) ([]map[string]interface{}, error) {
+func (e *ElasticsearchService) SearchByTimeRange(index string, startTime time.Time, endTime time.Time) ([]map[string]interface{}, error) {
 	startTimeStr := startTime.Format(time.RFC3339)
 	endTimeStr := endTime.Format(time.RFC3339)
 
@@ -140,11 +146,11 @@ func (e *Elasticsearch_Service) Search_By_TimeRange(index string, startTime time
 
 	res, err := e.repo.Search(index, query)
 	if err != nil {
-		return nil, e.Handle_Error("SearchByTimeRange", err, index)
+		return nil, e.HandleError("SearchByTimeRange", err, index)
 	}
 	defer res.Body.Close()
 
-	searchResults, err := e.Decode_Search_Results(res.Body)
+	searchResults, err := e.DecodeSearchResults(res.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -158,14 +164,14 @@ func (e *Elasticsearch_Service) Search_By_TimeRange(index string, startTime time
 	return docsInRange, nil
 }
 
-// Handle_Error handles Elasticsearch errors and logs them
-func (e *Elasticsearch_Service) Handle_Error(methodName string, err error, index string) error {
+// HandleError handles Elasticsearch errors and logs them
+func (e *ElasticsearchService) HandleError(methodName string, err error, index string) error {
 	log.Printf("%s: %s in index %s: %v", methodName, ErrElasticsearchSearch, index, err)
 	return fmt.Errorf("%s: %w", ErrElasticsearchSearch, err)
 }
 
-// Decode_Search_Results decodes the Elasticsearch search results
-func (e *Elasticsearch_Service) Decode_Search_Results(body io.Reader) (struct {
+// DecodeSearchResults decodes the Elasticsearch search results
+func (e *ElasticsearchService) DecodeSearchResults(body io.Reader) (struct {
 	Hits struct {
 		Hits []struct {
 			Source map[string]interface{} `json:"_source"`
