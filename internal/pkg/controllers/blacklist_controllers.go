@@ -4,7 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"notifications/internal/pkg/service"
+	service "notifications/internal/pkg/service"
+
 	"github.com/gorilla/mux"
 )
 
@@ -42,23 +43,26 @@ type SuccessResponseList struct {
 	Data []string `json:"data"`
 }
 
-type BlackList_Controller struct {
-	blacklistService *service.Blacklist_Service
+type BlackListController struct {
+	blacklistService *service.BlacklistService
 }
 
-func New_Blacklist_Controller(blacklistService *service.Blacklist_Service) *BlackList_Controller {
-	return &BlackList_Controller{blacklistService: blacklistService}
+// NewBlackListController creates and returns a new instance of BlackListController.
+func NewBlackListController() *BlackListController {
+	blacklistService := service.GetNewBlackListSerevice()
+	return &BlackListController{blacklistService: blacklistService}
 }
-
 // Handler functions
-
-func (h *BlackList_Controller) Get_All_From_BlackList(w http.ResponseWriter, r *http.Request) {
+func GetBlackListController()*BlackListController{
+	return NewBlackListController()
+}
+func (h *BlackListController) GetAllFromBlackList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	ctx := r.Context()
-	blacklist, err := h.blacklistService.Get_All_Blacklisted_Numbers(ctx)
+	blacklist, err := h.blacklistService.GetAllFromBlacklist(ctx)
 	if err != nil {
-		handleInternalError_Blacklist(w, err, "GetAllFromBlacklist")
+		handleinternalErrorBlacklist(w, err, "GetAllFromBlacklist")
 		return
 	}
 
@@ -66,11 +70,11 @@ func (h *BlackList_Controller) Get_All_From_BlackList(w http.ResponseWriter, r *
 		Data: blacklist,
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		handleEncodingError_Blacklist(w, err, "GetAllFromBlacklist")
+		handleEncodingErrorBlacklist(w, err, "GetAllFromBlacklist")
 	}
 }
 
-func (h *BlackList_Controller) Add_Number_To_BlackList(w http.ResponseWriter, r *http.Request) {
+func (h *BlackListController) AddNumberToBlacklist(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	var request struct {
@@ -82,9 +86,9 @@ func (h *BlackList_Controller) Add_Number_To_BlackList(w http.ResponseWriter, r 
 		return
 	}
 
-	success, already, err := h.blacklistService.Add_To_Blacklist(request.Numbers)
+	success, already, err := h.blacklistService.AddToBlacklist(request.Numbers)
 	if err != nil {
-		handleInternalError_Blacklist(w, err, "AddBlacklistNumbers")
+		handleinternalErrorBlacklist(w, err, "AddBlacklistNumbers")
 		return
 	}
 
@@ -93,16 +97,16 @@ func (h *BlackList_Controller) Add_Number_To_BlackList(w http.ResponseWriter, r 
 		"already": already,
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		handleEncodingError_Blacklist(w, err, "AddBlacklistNumbers")
+		handleEncodingErrorBlacklist(w, err, "AddBlacklistNumbers")
 	}
 }
 
-func (h *BlackList_Controller) Delete_From_BlackList(w http.ResponseWriter, r *http.Request) {
+func (h *BlackListController) DeleteNumberFromBlacklist(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	number := vars["number"]
 
-	err := h.blacklistService.Remove_From_Blacklist(number)
+	err := h.blacklistService.RemoveFromBlacklist(number)
 	if err != nil {
 		handleBlacklistRemovalError(w, err, number)
 		return
@@ -112,24 +116,24 @@ func (h *BlackList_Controller) Delete_From_BlackList(w http.ResponseWriter, r *h
 		Data: SuccessMessage,
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		handleEncodingError_Blacklist(w, err, "DeleteFromBlacklist")
+		handleEncodingErrorBlacklist(w, err, "DeleteFromBlacklist")
 	}
 }
 
-func (h *BlackList_Controller) Get_BlackList_By_ID(w http.ResponseWriter, r *http.Request) {
+func (h *BlackListController) GetBlacklistByID(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	vars := mux.Vars(r)
 	number := vars["number"]
 	ctx := r.Context()
 
-	isBlacklisted, err := h.blacklistService.Is_Number_Blacklisted(ctx, number)
+	isBlacklisted, err := h.blacklistService.IsNumberBlacklisted(ctx, number)
 	if err != nil {
-		handleInternalError_Blacklist(w, err, "GetBlacklistByID")
+		handleinternalErrorBlacklist(w, err, "GetBlacklistByID")
 		return
 	}
 
 	if !isBlacklisted {
-		handleNotFound_Blacklist(w, number, "GetBlacklistByID", NumberNotBlacklistedError)
+		handleNotFoundBlacklist(w, number, "GetBlacklistByID", NumberNotBlacklistedError)
 		return
 	}
 
@@ -143,12 +147,12 @@ func (h *BlackList_Controller) Get_BlackList_By_ID(w http.ResponseWriter, r *htt
 		},
 	}
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		handleEncodingError_Blacklist(w, err, "GetBlacklistByID")
+		handleEncodingErrorBlacklist(w, err, "GetBlacklistByID")
 	}
 }
 
 // Helper functions
-func handleInternalError_Blacklist(w http.ResponseWriter, err error, method string) {
+func handleinternalErrorBlacklist(w http.ResponseWriter, err error, method string) {
 	log.Printf("%s: Error: %v", method, err)
 	http.Error(w, encodeJSON(ErrorResponseBlacklist{
 		Error: struct {
@@ -219,7 +223,7 @@ func handleBlacklistRemovalError(w http.ResponseWriter, err error, number string
 	http.Error(w, encodeJSON(errorResponse), statusCode)
 }
 
-func handleNotFound_Blacklist(w http.ResponseWriter, number string, method string, message string) {
+func handleNotFoundBlacklist(w http.ResponseWriter, number string, method string, message string) {
 	log.Printf("%s: Number not blacklisted: %s", method, number)
 	http.Error(w, encodeJSON(ErrorResponseBlacklist{
 		Error: struct {
@@ -232,7 +236,7 @@ func handleNotFound_Blacklist(w http.ResponseWriter, number string, method strin
 	}), http.StatusNotFound)
 }
 
-func handleEncodingError_Blacklist(w http.ResponseWriter, err error, method string) {
+func handleEncodingErrorBlacklist(w http.ResponseWriter, err error, method string) {
 	log.Printf("%s: Error encoding response: %v", method, err)
 	http.Error(w, encodeJSON(ErrorResponseBlacklist{
 		Error: struct {
